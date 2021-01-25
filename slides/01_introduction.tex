@@ -1,0 +1,274 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize, xleftmargin=-0.25in}
+
+\hypersetup{colorlinks=true}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\begin{document}
+  % Title page
+  \title{Introduction}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}
+    \frametitle{General information}
+
+    \begin{tabular}{ll}
+      Course: & Computational Science II (CAAM 520)\\
+      Class: & MWF 1:30pm -- 2:25pm, fully online\\
+      Instructor: & Christopher Thiele\\
+      Office: & DCH 3015\\
+      Email: & ct37@rice.edu\\
+      Office hours: & by appointment\\
+    \end{tabular}
+    \begin{itemize}
+      \item[$\rightarrow$] All information on class website: \href{https://cthl.github.io/caam520}{https://cthl.github.io/caam520}
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Motivation}
+
+    Today's computers have multi-core CPUs that cannot be utilized by \emph{sequential}, i.e., non-parallel software.
+    \begin{itemize}
+      \item This is true even for laptop computers, phones, etc.
+      \item Tools and paradigms are needed to use such hardware.
+      \item We will learn about \emph{shared memory parallelism}\\$\rightarrow$ OpenMP
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Motivation}
+
+    Multiple computers will always be faster than a single computer.
+    \begin{itemize}
+      \item Large scientific applications require computer \emph{clusters}.
+      \item Requires \emph{additional} tools and paradigms.
+      \item We will learn about \emph{distributed memory parallelism}\\$\rightarrow$ MPI (Message Passing Interface)
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Motivation}
+
+    Even though parallelism makes programming more difficult, we must develop software that is
+    \begin{itemize}
+      \item correct,
+      \item robust,
+      \item maintainable,
+      \item extensible, and
+      \item portable.
+    \end{itemize}
+
+    \begin{itemize}
+      \item[$\rightarrow$] We will touch on aspects of software engineering where appropriate.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Overview}
+
+    In this course, we will learn to
+    \begin{itemize}
+      \item understand the benefits and challenges of parallel computing on current multi-core computers,
+      \item design parallel algorithms for scientific applications,
+      \item implement parallel algorithms with OpenMP, MPI, and hybrid approaches,
+      \item assess the suitability of parallel programming techniques for scientific applications,
+      \item measure the performance and scalability of scientific software, and
+      \item develop robust, extensible, and maintainable scientific code.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Tentative list of topics}
+
+    \begin{itemize}
+      \item Recap of C (specifically pointers, memory management)
+      \item Standard development tools (GCC, make, GDB, gprof, Valgrind, Git)
+      \item CPU and memory architecture on current multi-core systems
+      \item Parallelism -- some theory
+      \item Introduction to shared memory parallelism with OpenMP
+      \item Introduction to distributed memory parallelism with MPI
+      \item Hybrid parallelism
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Tentative list of topics (optional)}
+
+    \begin{itemize}
+      \item Advanced MPI (non-blocking and one-sided communication)
+      \item Scientific software at scale (PETSc)
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Texts and materials}
+
+    There are no required texts for this course.
+
+    The following texts and manuals are recommended:
+    \begin{itemize}
+      \item Introduction to High Performance Computing for Scientists and Engineers by Hager and Wellein (2011)
+      \item The C Programming Language (2nd ed.) by Kernighan and Ritchie (1988)
+    \end{itemize}
+    \begin{itemize}
+      \item[$\rightarrow$] See website for additional material.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Prerequisites}
+
+    \begin{itemize}
+      \item You should be familiar with C and the Linux/Unix command line.
+      \item You should have basic knowledge of Git.
+      \item You must have access to a computer on which you can install software.
+      \item You must have (or create) a GitHub account.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Grading}
+
+    \begin{itemize}
+      \item Grades will be based on homework submissions.
+      \item Some homework problems might be pledged.
+      \item There will not be any exams.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Homework}
+
+    Homework will involve programming and writing a report.
+    \begin{itemize}
+      \item Anticipate a homework every 2 -- 3 weeks (one per section).
+      \item Submit code and reports to a private GitHub repository (will be provided).
+      \item Late submissions will incur a penalty of 10\% per day. Ask \emph{in advance} for exceptions.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Homework}
+
+    Reports must be submitted as PDF files.
+
+    Code can be written in C or C++ (any standard) as long as
+    \begin{itemize}
+      \item a Makefile is provided, and
+      \item interfaces are not violated.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Homework}
+
+    \emph{Example 1:} The task is to implement a function
+    \begin{lstlisting}[language=c]
+      int norm2(const double *x, int n, double &norm)
+    \end{lstlisting}
+
+    You can implement this function in C or C++, but you must not change its name or signature, i.e., do not implement
+    \begin{lstlisting}[language=c++]
+      double euclidean_norm(const std::vector<double> &x)
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Homework}
+
+    \emph{Example 2:} The task is to implement a structure
+    \begin{lstlisting}[language=c]
+      typedef struct
+      {
+        double *x;
+        int n;
+      } my_vector;
+    \end{lstlisting}
+
+    You can implement this function in C or C++, but do not implement
+    \begin{lstlisting}[language=c++]
+      class my_vector
+      {
+      private:
+        double *x;
+        int n;
+      };
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Homework}
+
+    A Linux-based virtual machine (VM) with all software required for the homework is available \href{https://rice.box.com/s/1fsjlvmved24ffkwujcw5m450eovpyqq}{here}.
+
+    It can be used with VirtualBox (\href{https://www.virtualbox.org/}{https://www.virtualbox.org/}) on Linux, macOS, and Windows.
+
+    Use of the VM is strongly encouraged.
+    \begin{itemize}
+      \item Some software is difficult to install on some systems, e.g., GCC and GDB on macOS.
+      \item Using the VM ensures that your code works on the grader's system.
+    \end{itemize}
+  \end{frame}
+\end{document}
