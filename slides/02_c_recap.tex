@@ -1,0 +1,512 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+
+
+\begin{document}
+  % Title page
+  \title{A Recap of the C Programming Language}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}
+    \frametitle{Overview}
+
+    Before we start using C for our purposes, we will review
+    \begin{itemize}
+      \item variable initialization,
+      \item pointers,
+      \item segmentation faults,
+      \item pointers and structures,
+      \item pointers to pointers, etc.,
+      \item void pointers and casts,
+      \item function pointers,
+      \item arrays, and
+      \item dynamic memory allocation.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Variable initialization}
+
+    Variables must be initialized \emph{explicitly}!
+    \begin{code}
+int i = 123;
+int k;
+
+printf("%d\n", i);
+printf("%d\n", k); // Undefined result!
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Pointers are variables that store the address of another variable.
+    \begin{code}
+int i;
+int *ptr = &i;
+
+i = 123;
+
+printf("%p\n", ptr);  // Print the address of i.
+printf("%d\n", *ptr); // Print the value of i.
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Variables can be modified through pointers.
+    \begin{code}
+int i;
+int *ptr = &i;
+
+*ptr = 123;
+
+printf("%p\n", ptr);  // Print the address of i.
+printf("%d\n", *ptr); // Print the value of i.
+    \end{code}
+  \end{frame}
+
+    \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Typical use case: output arguments
+
+    \begin{code}
+int foo()
+{
+  return 123;
+}
+    \end{code}
+    vs.
+    \begin{code}
+void foo(int *result)
+{
+  *result = 123;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Typical use case: output arguments
+
+    Particularly useful for multiple output arguments and when using error codes!
+    \begin{code}
+int divide(int x, int y,
+           int *quotient, int *remainder)
+{
+  if (y == 0) return -1;
+
+  *quotient = x/y;
+  *remainder = x%y;
+  return 0;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Like other variables, pointers must be initialized!
+    \begin{code}
+int *ptr;
+
+// Undefined behavior, likely a segmentation fault!
+*ptr = 123;
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    We use \texttt{NULL} to indicate invalid pointers.
+    \begin{code}
+int *ptr = NULL;
+
+// ...
+
+// Check if pointer is valid.
+if (ptr) { // Equivalent to ptr != NULL
+  // ...
+}
+
+// Check if pointer is invalid.
+if (!ptr) { // Equivalent to ptr == NULL
+  // ...
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Pointers to structures allow more convenient notation.
+    \begin{code}
+typedef struct
+{
+  int i;
+} my_struct_t;
+
+void init(my_struct_t *s)
+{
+  (*s).i = 123;
+  // Equivalent, but more convenient:
+  s->i = 123;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Pointers can point to variables of any type, including other pointers.
+    \begin{code}
+int i = 123, *ptr, **ptrptr;
+
+ptrptr = &ptr;
+*ptrptr = &i;
+
+// Print value of ptrptr/address of ptr.
+printf("%p\n", ptrptr);
+// Print value of ptr/address of i.
+printf("%p\n", *ptrptr);
+// Print value of i.
+printf("%d\n", **ptrptr);
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Why would we need pointers to pointers?\pause
+
+    E.g., for functions that need have pointers as output arguments.
+    \begin{code}
+void ptr_max(const int *i, const int *k, int **max)
+{
+  if (*i > *k) {
+    *max = i;
+  }
+  else {
+    *max = k;
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Constant pointers and pointers to constant things:
+    \begin{code}
+int i;
+
+// What does each declaration do?
+int *ptr1 = &i;
+const int *ptr2 = &i;
+int *const ptr3 = &i;
+const int *const ptr4 = &i;
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Void pointers represent generic memory addresses.
+    They can point to variables whose type is unknown.
+    \begin{code}
+int i;
+
+void *ptr = &i;
+
+// Error: Compiler does not know that ptr
+// points to an integer!
+*ptr = 123;
+
+// We must cast void pointers before
+// dereferencing them.
+*((int*) ptr) = 123;
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Why would we need void pointers?\pause
+
+    E.g., for functions that operate on data of any type:
+    \begin{code}
+// Copy any type of data.
+void* memcpy(void *dst, const void *src, size_t n)
+
+// Allocate and deallocate memory.
+void* malloc(size_t size)
+void free(void *ptr)
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointers}
+
+    Caution: C and C++ handle void pointers slightly differently!
+    \begin{code}
+// The following works *only* in C:
+int *ptr = malloc(sizeof(int));
+
+// In C++ we must cast explicitly.
+int *ptr = (int*) malloc(sizeof(int));
+    \end{code}
+    \conclude{It might be a good idea to cast, as someone else could use our C code in their C++ project.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Function pointers}
+
+    We can create pointers to functions as well:
+    \begin{code}
+int add(int i, int k) { return i + k; }
+
+// ...
+
+// Create a pointer to the add function.
+int (*add_fptr)(int, int) = add;
+
+// Call add through the pointer.
+add_fptr(3, 7);
+    \end{code}
+
+    \conclude{Notice the parentheses in the function pointer declaration!}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Arrays}
+
+    C supports arrays of fixed size and any type:
+    \begin{code}
+int array[16];
+
+// Indices start at zero!
+for (int i = 0; i < 16; i++) {
+  array[i] = i;
+}
+
+// What does this do?
+array[16] = 123;
+// How about this?
+array[12345] = 123;
+    \end{code}
+
+    \conclude{Be very careful with indices!}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Arrays}
+
+    Arrays of characters (strings) are particularly common and useful.
+    \begin{code}
+const char string[] = "hello, world!";
+
+printf("%d\n", strlen(string)); // 13
+printf("%d\n", sizeof(string)); // 14 - why?
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Dynamic memory allocation}
+
+    We can allocate "arrays" \emph{dynamically}.
+    \conclude{Technically, arrays and pointers to allocated memory are \emph{not} the same, but the differences are negligible for our purposes.}
+    \begin{code}
+int *array = (int*) malloc(n*sizeof(int));
+
+if (!array) { // Equivalent to array == NULL
+  fprintf(stderr, "Error: Allocation failed!\n");
+  return -1;
+}
+
+// We can access the array as usual.
+array[n - 1] = 123;
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Dynamic memory allocation}
+
+    Other ways to (re)allocate memory dynamically:
+    \begin{code}
+// Allocates *uninitialized* memory:
+void* malloc(size_t size)
+
+// Allocates memory and sets it to zero:
+void* calloc(size_t num, size_t size)
+
+// Reallocates memory, i.e., if we need more:
+void* realloc(void *ptr, size_t new_size)
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Dynamic memory allocation}
+
+    If memory is allocated, it must be deallocated with \texttt{free()}.
+    \begin{code}
+int *array = (int*) malloc(n*sizeof(int));
+
+// Deallocate memory.
+free(array);
+    \end{code}
+
+    If memory is not released when it is no longer used, we have a \emph{memory leak}!
+    \conclude{Why are leaks problematic?}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Dynamic memory allocation}
+
+    \emph{Example 1:} Memory is allocated repeatedly, but never deallocated.
+    \begin{code}
+for (int i = 0; i < 16; i++) {
+  int *array = (int*) malloc(n*sizeof(int));
+
+  // Work with array in the loop.
+
+  // free() is missing.
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Dynamic memory allocation}
+
+    \emph{Example 2:} Memory is allocated, but the programmer is not aware of it.
+    \begin{code}
+char* get_message()
+{
+  char *msg = (char*) malloc(64);
+  strcpy(msg, "hello, world!");
+  return msg;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Dynamic memory allocation}
+
+    Rule of thumb: For each call to \texttt{malloc()}, \texttt{calloc()}, or \texttt{realloc()}, there must be a matching call to \texttt{free()}.
+
+    Note to C++ programmers:
+    \begin{itemize}
+      \item If memory was allocated with \texttt{new}, it \emph{must} be deallocated with \texttt{delete}.
+      \item If memory was allocated with \texttt{malloc()}, \texttt{calloc()}, or \texttt{realloc()}, it \emph{must} be deallocated with \texttt{free()}.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointer arithmetic}
+
+    C allows arithmetic with pointers:
+    \begin{code}
+int *array = (int*) malloc(16*sizeof(int));
+
+// Access 7th element.
+array[6] = 123;
+// Equivalently:
+*(array + 6) = 123;
+    \end{code}
+
+    \conclude{For \texttt{int*}, pointer arithmetic works in increments of \texttt{sizeof(int)} etc.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pointer arithmetic}
+
+    C allows arithmetic with pointers:
+    \begin{code}
+int *array = (int*) malloc(16*sizeof(int));
+
+int *ptr = &array[3];
+ptr += 3;
+--ptr;
+
+// Which element does this set?
+*ptr = 123;
+    \end{code}
+  \end{frame}
+\end{document}
