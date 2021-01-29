@@ -1,0 +1,232 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{Tools of the Trade -- Part II:\\Debugger}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Debugging}
+
+    I wrote some code, the compiler finally stopped complaining, but the code doesn't do what I want it to do.
+
+    \conclude{Time for \emph{debugging}}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{How not to debug your code}
+
+    Debugging with \texttt{printf()} etc. (see below) is cumbersome, inefficient and possibly misleading!
+    \begin{code}
+for (int i = 0; i < n; i++) {
+  for (int j = i + 1; j < n; j++) {
+    if (array[j] < array[i]) {
+      tmp = array[i];
+      array[i] = array[j];
+      array[j] = tmp;
+    }
+  }
+  printf("array[%d] = %d after iteration %d\n",
+         i, array[i], i);
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Debugging}
+
+    Use a proper tool, i.e., a debugger like GDB!
+
+    \emph{Preparation:} For efficient and convenient debugging, compile your code with
+    \begin{itemize}
+      \item debug symbols (\texttt{-g}) and
+      \item possibly less optimization (e.g., \texttt{-O0} instead of \texttt{-O2}).
+    \end{itemize}
+
+    \cmd{gcc -g -O0 -o myapp myapp.c}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+
+    To debug your program, run
+    \cmd{gdb ./myapp}
+    or run
+    \cmd{xterm -e gdb ./myapp}
+    to debug in a new terminal.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+
+    To print your current position in the code, use the \texttt{where} and \texttt{frame} commands, e.g.,
+    \cmd{(gdb) list}
+
+    To view the surrounding source code, use the \texttt{list} command.
+
+    To find out how you got to the current line of code, use the \texttt{backtrace} command.
+
+    \emph{Note:} GDB allows you to use the shortest unambiguous abbreviation for any command, e.g., \texttt{l} instead of \texttt{list} etc.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+    
+    To run your program, use the \texttt{run} command.
+
+    To interrupt execution, use \texttt{\^{}C} (Ctrl+C).
+
+    To interrupt execution at a specific place, use \emph{breakpoints}:
+
+    \texttt{(gdb) break 123\\(gdb) break my\_file.c:123\\(gdb) break my\_function\\(gdb) break 123 if my\_variable > 42}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+    
+    To view breakpoints, enter \texttt{info break}.
+
+    To delete breakpoints, enter
+    \begin{itemize}
+      \item \texttt{delete} plus the breakpoint ID or
+      \item \texttt{clear} plus the location of the breakpoint.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+    
+    Watchpoints are a special type of breakpoints that interrupt execution whenever the value of a specific variable changes:
+
+    \texttt{(gdb) watch my\_var\\(gdb) run\\Hardware watchpoint 1: my\_var\\\ \\Old value = 1\\New value = 2}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+    
+    To continue execution, use
+    \begin{itemize}
+      \item \texttt{continue} to continue to the next breakpoint,
+      \item \texttt{step} to continue to the next line of code, entering called functions,
+      \item \texttt{next} to continue to the next line of code, ignoring function calls, or
+      \item \texttt{finish} to continue until the current function is left.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+    
+    To print the value of a variable, use the \texttt{print} command.
+
+    To examine a block of memory, use the \texttt{x} command, i.e.,
+    \cmd{(gdb) x/nfu address}
+    where
+    \begin{itemize}
+      \item \texttt{n} is the number of units to examine,
+      \item \texttt{f} is the data format (like \texttt{printf()}, e.g., \texttt{d} for integers etc.),
+      \item \texttt{u} is the unit (\texttt{b}, \texttt{h}, \texttt{w}, \texttt{g} for 1, 2, 4, 8 bytes), and
+      \item \texttt{address} is the memory address.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+    
+    You can modify variables using the \texttt{set var} command, e.g.,
+    \cmd{set var i=123}
+
+    To find out the type of a variable, use the \texttt{whatis} command.
+
+    \texttt{(gdb) whatis i\\type = int\\(gdb) set var i=123}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using GDB}
+    
+    To modify memory directly, use the \texttt{set} command, e.g.,
+
+    \texttt{(gdb) set \{int\}0x7fffffffb630=123\\(gdb) set \{char\}0x7fffffffb630='x'\\(gdb) set \{int\}my\_int\_ptr=123\\(gdb) set \{char[32]\}my\_str="hello, world!"}
+
+    \emph{Note:} In the last two examples, it is easier to use
+
+    \texttt{(gdb) set var *my\_int\_ptr=123\\(gdb) set var my\_str="hello, world!"}
+  \end{frame}
+\end{document}

@@ -1,0 +1,254 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{Tools of the Trade -- Part I:\\Compiler, Linker, Build System}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Overview}
+
+    Now that we can write C code, how do we transform it into a program?
+    \begin{itemize}
+      \item Compiler: Translates C code to machine code.
+      \item Linker: Transforms machine code to a binary, e.g., for Linux.
+      \item Build system: Manages the compiler and linker (among other things).
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiler}
+
+    While there are countless C compilers available, we will focus on GCC.
+    \begin{itemize}
+      \item Can be considered the default on GNU/Linux.
+      \item Most other compilers for Linux/Unix are largely compatible (e.g., Clang, Intel Compiler).
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiler}
+
+    To compile a single source file \texttt{test.c} in to an \emph{executable} or \emph{binary} called \texttt{test}, we simply run
+    \cmd{gcc -o test test.c}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiler}
+
+    Use the compiler to your advantage!
+
+    The compiler can help you with a lot of warnings if you write code that is not robust and potentially faulty:
+    \cmd{gcc -Wall -Wextra -Wpedantic -o test test.c}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiler}
+    So far we compiled and linked in one step! Let's look at both steps separately.
+
+    If we only want to compile, i.e., translate C code into machine code, we run
+    \cmd{gcc -c -o test.o test.c}
+
+    \conclude{Produces an \emph{object file}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Linker}
+
+    To create an executable from one or many object files, we run
+    \cmd{gcc -o test test1.o test2.o}
+
+    \conclude{Linking}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Linker}
+
+    The linker also includes \emph{libraries} and third-party code.
+    \cmd{gcc -o test test.o \emph{-lm}}
+
+    \conclude{The flag \texttt{-lm} tells the linker to link (l) against the math library (m), which contains functions like \texttt{exp()}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Linker}
+
+    Why would we want to separate compilation and linking?
+
+    Compiling everything at once might be undesirable or impossible:
+    \begin{itemize}
+      \item If we have 100 source files and there is an error in one of them, the compilation of all 100 has to be repeated.
+      \item If we compile files separately, we can do so in parallel.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Build system}
+
+    Who has 100 source files?
+    \conclude{Linux kernel has more than 10,000,000 lines of code.}
+
+    Does Linus Torvalds type
+    \cmd{gcc -c -o file.o file.c}
+    hundreds of times?
+
+    \conclude{No, he uses a build system.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Build system}
+
+    We will use GNU Make as a build system.
+
+    It allows us to compile and link an application accorting to a recipe, a so-called \emph{Makefile}:
+
+    \begin{lstlisting}[frame=single]
+# Simplest structure of a target in a Makefile:
+target: dependencies
+  things_to_do
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Build system}
+
+    A Makefile to compile a program from two source files:
+
+    \begin{lstlisting}[frame=single]
+my_application: file1.c file2.c
+# Simplest structure of a target in a Makefile:
+  # Indent with *tabs*, not with spaces!
+  gcc -o my_application file1.c file2.c
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Build system}
+
+    Makefiles can automate much more complex build processes:
+
+    \begin{lstlisting}[frame=single]
+SRC := $(wildcard *.c)
+OBJ := $(patsubst %.c, %.o, $(SRC))
+
+my_application: $(OBJ)
+  gcc -o $@ $^
+
+%.o: %.c
+  gcc -c -o $@ $<
+    \end{lstlisting}
+
+    \conclude{Unfortunately, the syntax is horrible.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Build system}
+
+    Why do we need Makefiles in class?
+
+    To ensure that your code can be built without knowing the details!
+
+    \begin{lstlisting}[frame=single]
+# Student 1
+hw1: file.c
+  gcc -o hw1 file.c
+    \end{lstlisting}
+
+    \begin{lstlisting}[frame=single]
+# Student 2
+hw1: file1.cc file2.cc
+  g++ -std=c++14 -o hw1 file1.cc file2.cc -lm
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Build system}
+
+    Note that (GNU) Make has its limitations:
+    \begin{itemize}
+      \item Horrible syntax
+      \item First appeared in 1976
+      \item Targets Unix/Linux
+    \end{itemize}
+
+    \conclude{For more complex tasks, consider using a meta build system like CMake.}
+  \end{frame}
+\end{document}
