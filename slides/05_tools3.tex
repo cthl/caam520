@@ -1,0 +1,288 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{Tools of the Trade -- Part III:\\Memory Debugger and Profiler}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Memory debugging}
+
+    Recall that improper memory management can cause leaks (in languages like C and C++):
+    \begin{code}
+void foo(const void *data, size_t size)
+{
+  void *copy = malloc(size);
+
+  if (!data) {
+    return; // Memory leak!
+  }
+
+  // ...
+
+  free(copy);
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Memory debugging}
+
+    In the example, the memory leak is obvious.
+    \conclude{How to find leaks in a large, complex code base?}
+
+    We can use a memory debugger like Valgrind:
+    \cmd{valgrind {-}-tool=memcheck ./myapp}
+
+    Valgrind will point out definite and possible memory leaks.
+
+    \emph{Note:} Running your code in Valgrid will slow down execution \emph{significantly}!
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Valgrind}
+
+    Besides memory debugging, Valgrind has additional features:
+    \begin{itemize}
+      \item Identify (some types) of performance bottlenecks.
+      \item Find errors in parallel applications.
+    \end{itemize}
+
+    These features will not be covered in class, but you may want to try them at some point.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling}
+
+    Before we attempt to write parallel and performance-conscious code, we should understand how to assess the performance of an application.
+    \begin{itemize}
+      \item Where in the code does the application spend most time?
+      \item What are the performance hotspots and bottlenecks?
+      \item Where should we start optimizing?
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling}
+
+    \emph{Profilers} can help us to collect this information.
+
+    The most common approaches are:
+    \begin{itemize}
+      \item \emph{Instrumentation:} The compiler automatically adds timers, counters, etc. to each function in our code.
+      \item \emph{Statistical profiling:} The code remains unchanged. At specific intervals, the profiler checks which part of the code is currently executed.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling}
+
+    Instrumentation:
+    \begin{itemize}
+      \item Pros: Easy to use, "exact" measurements
+      \item Cons: Intrusive, slows down execution, can cause "heisenbugs"
+    \end{itemize}
+
+    Statistical profiling
+    \begin{itemize}
+      \item Pros: Not intrusive, does not slow down execution
+      \item Cons: Require support from the OS (drivers)
+    \end{itemize}
+
+    \conclude{We will use a hybrid approach with gprof.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling with instrumentation}
+
+    Adding timers and counters manually is the most basic form of profiling with instrumentation.
+
+    \begin{code}
+void my_function()
+{
+  const double start = start_timer();
+
+  // ...
+
+  const double delta = stop_timer() - start;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling with instrumentation}
+
+    Do not use \texttt{time()}!
+    \conclude{It has a low resolution of one second.}
+
+    \begin{code}
+void my_function()
+{
+  const time_t start = time();
+
+  // ...
+
+  const time_t delta = time() - start;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling with instrumentation}
+
+    Do not use \texttt{clock()}!
+    \begin{itemize}
+      \item It measures \emph{CPU time}, not \emph{elapsed time}.
+      \item \texttt{CLOCKS\_PER\_SEC} is \emph{not} the number of clock ticks per second.
+    \end{itemize}
+
+    \begin{code}
+void my_function()
+{
+  const clock_t start = clock();
+
+  // ...
+
+  const clock_t end = clock();
+  const double delta = (end - start)/CLOCKS_PER_SEC;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling with instrumentation}
+
+    On Linux, use \texttt{clock\_gettime()}, which provides a high-resolution timer that measures real time.
+
+    \begin{code}
+void my_function()
+{
+  struct timespec start, end;
+  // Use CLOCK_MONOTONIC, not CLOCK_REALTIME!
+  clock_gettime(CLOCK_MONOTONIC, &start);
+
+  // ...
+
+  clock_gettime(CLOCK_MONOTONIC, &end);
+  const double delta = time_diff(end, start);
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Profiling with instrumentation}
+
+    On Linux, use \texttt{clock\_gettime()}, which provides a high-resolution timer that measures real time.
+
+    \begin{code}
+double time_diff(const struct timespec *end,
+                 const struct timespec *start)
+{
+  const double start_double
+    = start->tv_sec + 1.0e-9*start->tv_nsec;
+  const double end_double
+    = end->tv_sec + 1.0e-9*end->tv_nsec;
+
+  return end_double - start_double;
+}
+    \end{code}
+  \end{frame}
+
+
+
+  \begin{frame}[fragile]
+    \frametitle{Using gprof}
+
+    \emph{Step 1:} Compile with \texttt{-pg} flag.
+    \cmd{gcc -pg -o myapp myapp.c}
+
+    This tells the compiler to add gprof instrumentation.
+
+    \emph{Step 2:} Run your application as usual. Doing so will produce a file named \texttt{gmon.out}.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using gprof}
+
+    \emph{Step 3:} Use gprof to convert \texttt{gmon.out} to a human-readable performance profile.
+    \cmd{gprof myapp gmon.out > profile.txt}
+  \end{frame}
+\end{document}
