@@ -1,0 +1,363 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{CPUs and Memory}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Overview}
+
+    \begin{itemize}
+      \item Why do we need to know about CPU architecture and memory?
+      \item What do typical CPU architectures look like?
+      \item What does this mean for scientific computations?
+    \end{itemize}
+
+    \conclude{Hager \& Wellein, chapter 1}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Computational complexity}
+
+    Computational complexity or computational cost is often assessed by counting floating point operations (FLOP), e.g.,
+    \begin{itemize}
+      \item Vector dot product: $\mathcal O(n)$
+      \item Matrix-vector product: $\mathcal O(n^2)$
+    \end{itemize}
+
+    While such classifications can provide useful insight, they do not always translate directly to modern computer hardware.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{CPU architecture}
+
+    A CPU has several units for integer and floating point arithmetic.
+
+    These units operate on (integer or floating point) registers.
+
+    \begin{lstlisting}[frame=single]
+mov eax, 1
+mov ebx, 2
+; Add eax and ebx, store result in eax.
+add eax, ebx
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{CPU architecture}
+
+    The CPU can load data from memory into registers and write from registers to memory.
+
+    \begin{lstlisting}[frame=single]
+; Load value from address given by ebx, increment,
+; and write back.
+mov eax, [ebx]
+add eax, 1
+mov [ebx], eax
+    \end{lstlisting}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{CPU architecture}
+
+    We can express the \emph{peak performance} of a CPU in floating point operations per second (FLOPS).
+
+    For a long time, peak performance could be increased using higher and higher clock frequencies.
+
+    \conclude{Today, physical limitations make further increases in frequency impossible or undesirable.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{CPU architecture}
+
+    What can be done to futher improve performance?
+
+    \begin{itemize}
+      \item Pipelining
+      \item Superscalar architecture
+      \item SIMD
+      \item Out-of-order execution
+      \item RISC instead of CISC
+      \item Caches
+      \item Multi-core architectures
+      \item Hyperthreading
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pipelining}
+
+    Instead of executing instructions one by one, break them down into simple tasks.
+
+    Simple tasks can be performed by separate, simple units on the CPU.
+
+    These units can be kept busy using pipelines.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pipelining}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.55\linewidth]{figures/cpu_pipeline.png}
+    \end{figure}
+    \blfootnote{https://en.wikipedia.org/wiki/File:Pipeline,\_4\_stage.svg}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pipelining}
+
+    While pipelines keep CPU units busy, they also add
+    \begin{itemize}
+      \item latency, and
+      \item the possibility of pipeline bubbles.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Pipelining}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.55\linewidth]{figures/cpu_pipeline_bubbles.png}
+    \end{figure}
+    \blfootnote{https://en.wikipedia.org/wiki/File:Pipeline,\_4\_stage\_with\_bubble.svg}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Superscalar architecture}
+
+    A CPU can have multiple units of any given type (load, store, integer and floating point arithmetic, etc.).
+    Hence, it can perform multiple operations concurrently.
+
+    \conclude{Compare this to pipelining.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{SIMD}
+
+    A CPU can provide instructions that operate on multiple pieces of data at the same time.
+    \conclude {Single instruction, multiple data (SIMD)}
+
+    This is not the same as superscalar architecture!
+
+    SIMD instructions are part of SSE, AVX, AVX2, AVX512, etc.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Out-of-order execution}
+
+    A CPU may reorder instructions if possible.
+
+    \begin{lstlisting}[frame=single]
+; Load value from address given by ebx
+; and add it to eax.
+add eax, [ebx]
+; Increment ecx.
+add ecx, 1
+    \end{lstlisting}
+
+    \conclude{The second instruction could be executed while the input data for the first instruction is loaded.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{RISC instead of CISC}
+
+    In the past, there were two types of computers/CPUs:
+    \begin{itemize}
+      \item Complex instruction set computers (CISC)
+      \item Reduced instruction set computers (RISC)
+    \end{itemize}
+
+    While many contemporary CPUs expose a CISC interface, they are RISC CPUs internally.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Caches}
+
+    Modern CPUs can perform computations much faster than data can be loaded from main memory.
+    \conclude{Gap between FLOPS and \emph{memory bandwidth}}
+
+    To limit the impact of low memory bandwidth, modern CPUs have \emph{caches}, which are
+    \begin{itemize}
+      \item small (KBs to a few MBs) and
+      \item fast (low latency, high bandwidth.)
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Caches}
+
+    In fact, modern CPUs typically have a hierarchy of caches:
+    \begin{itemize}
+      \item L1 cache: Very small, very fast
+      \item L2 cache: Larger, but slower
+      \item L3 cache: Even larger (a few MB), even slower
+      \item Main memory: Huge, but very slow in comparison
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Caches}
+
+    When the CPU needs data from memory, one or more \emph{cache lines} are loaded into the cache.
+    \conclude{The CPU \emph{cannot} load individual bytes from main memory.}
+
+    Caches are used most efficiently by algorithms with
+    \begin{itemize}
+      \item \emph{temporal locality}, i.e., algorithms that reuse data before discarding it, or
+      \item \emph{spatial locality}, i.e., algorithms that operate on contiguous blocks of data.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Caches}
+
+    If the CPU requests data which is already present in a cache, we call it a \emph{cache hit}.
+
+    Conversely, if the CPU requests data which must be loaded from main memory, we call it a \emph{cache miss}.
+
+    \emph{Note:} CPUs also have an \emph{instruction cache}, i.e., there can be instruction cache misses, too.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Multi-core architectures}
+
+    The power dissipation of a CPU is proportional to the third power of the clock frequency (Hager \& Wellein).
+
+    \conclude{Use multiple CPU \emph{cores} with lower clock frequency in a single CPU.}
+
+    Multi-core CPUs are ubiquitous nowadays, and they allow for a variety of CPU designs.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Hyperthreading}
+
+    Recall that pipeline bubbles can cause CPU units, e.g., arithmetic units, to idle.
+
+    Hyperthreading attempts to avoid pipeline bubbles by duplicating the CPUs \emph{architectural state} (registers, control, etc.).
+    The CPU can then execute two applications concurrently and feed instructs from both applications into the same pipeline.
+
+    \conclude{It depends on the (scientific) application whether hyperthreading is useful.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Conclusions}
+
+    What does all of this mean in practice?
+
+    \begin{itemize}
+      \item Computational performance is a complex issue.
+      \item Few applications can achieve peak performance.
+      \item FLOP counting does not tell the entire story.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{An example}
+
+    Consider the \emph{vector triad}
+    \begin{code}
+for (int r = 0; r < repetitions; r++) {
+  for (int i = 0; i < n; i++) {
+    a[i] = b[i] + c[i]*d[i];
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{An example}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.8\linewidth]{figures/vec_triad_w2102.png}
+    \end{figure}
+  \end{frame}
+\end{document}
