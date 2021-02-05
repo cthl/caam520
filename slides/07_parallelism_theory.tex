@@ -1,0 +1,370 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+% Footnotes without a number
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{Parallelism -- Some Theory}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Overview}
+
+    \begin{itemize}
+      \item Why parallelize?
+      \item Shared and distributed memory parallelism
+      \item Processes and threads
+      \item OpenMP and MPI
+      \item Terminology
+      \item Strong and weak scalability
+      \item Amdahl's law
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Why parallelize?}
+
+    There are (at least) two possible motivations:
+    \begin{itemize}
+      \item Utilization of more computational resources to reduce time-to-solution.
+      \item Utilization of more computational resources to solve larger problems.
+    \end{itemize}
+
+    Furthermore, contemporary hardware, e.g., multi-core CPUs, makes parallelization somewhat mandatory.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Shared memory parallelism}
+
+    Shared memory parallelism targets platforms on which all compute units have access to the same memory.
+
+    Examples:
+    \begin{itemize}
+      \item Multiple CPU cores on a single chip accessing main memory
+      \item Multiple CPUs who can access each other's memory
+      \item GPGPUs
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Distributed memory parallelism}
+
+    Distributed memory parallelism targets platforms on which each compute unit has its own, private memory.
+
+    Example:
+    \begin{itemize}
+      \item A computer cluster in which compute nodes are connected via network.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Shared and distributed memory parallelism}
+
+    The boundaries are fluid due to technologies such as \emph{remote direct memory access} (RDMA).
+
+    Besides the hardware perspective, shared and distributed memory parallelism can also be viewed as software concepts.
+    \conclude{Just because compute units can share memory, they do not have to.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Processes and threads}
+
+    Modern operating systems (OS) for desktop and laptop computers, servers, etc. support multi-tasking, i.e., tasks or applications can run concurrently.
+
+    Multi-tasking can be implemented in different ways:
+    \begin{itemize}
+      \item Time-sharing: All tasks run on the same CPU (core), and the OS switches between them.
+      \item True multi-tasking: Tasks run on separate CPUs or CPU cores, i.e., truly concurrently.
+    \end{itemize}
+
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Processes and threads}
+
+    \emph{Processes} are independent tasks that can be scheduled by the OS using either multi-tasking approach.
+
+    \emph{Threads} are tasks that are created by a process. They typically and share a process ID, memory, etc. with the parent process, but they can be scheduled independently.
+
+    \conclude{Specific differences between processes and threads depend on the operating system.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Processes and threads}
+
+    Threads are suitable for shared memory environments.
+    \begin{itemize}
+      \item We will use OpenMP for shared memory parallelism.
+      \item OpenMP applications spawn multiple threads which access shared memory.
+    \end{itemize}
+
+    Distributed memory environments require processes.
+    \begin{itemize}
+      \item We will use the Message Passing Interface (MPI) to develop distributed memory parallel applications.
+      \item MPI applications spawn multiple processes which exchange messages.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Terminology}
+
+    Some conventions:
+    \begin{itemize}
+      \item \emph{Thread}: the software concept discussed before, i.e., not a hardware feature as in hyperthreading
+      \item \emph{CPU} or \emph{processor}: an entire physical CPU, may consist of multiple CPU cores
+      \item We always distinguish a \emph{process} (software) from a \emph{processor} (hardware).
+      \item \emph{(Compute) node}: an entire computer, i.e., the whole box
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Terminology}
+
+    Consider a parallel application which does the (normalized) amount of work
+    \[s+p=1,\]
+    where
+    \begin{itemize}
+      \item $p$ is the fraction of work that can be performed in \emph{parallel}, and
+      \item $s$ is the fraction of work that must be performed \emph{sequentially}.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Terminology}
+
+    Let $T_f^1$ be the time required to do the \emph{fixed} amount of work $s+p$ \emph{sequentially}.
+
+    Let $T_f^N$ be the time required to do the same amount of work $s+p$ in \emph{parallel} using $N$ \emph{workers}.
+
+    (\emph{Note:} Our definitions differ from those used by Hager \& Wellein.)
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Terminology}
+
+    For $N\ge 1$, let us define \emph{performance} as work over time, i.e.,
+    \[P_f^N=\frac{s+p}{T_f^N}.\]
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Terminology}
+
+    We define the \emph{speedup} as
+    \[S^N=\frac{P_f^N}{P_f^1}=\frac{T_f^1}{T_f^N}.\]
+
+    \conclude{The speedup tells us how much performance increases, and how much time-to-solution decreases when using $N$ workers instead of one.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Terminology}
+
+    We define \emph{parallel efficiency} as
+    \[E_f^N=\frac{P_f^N}{NP_f^1}=\frac{T_f^1}{NT_f^N}=\frac{S^N}{N}.\]
+
+    When using $N$ workers instead of one, we should expect a speedup of at most $N$.
+    \conclude{Parallel efficiency tells us what fraction of the ideal speedup is achieved.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Strong scalability}
+
+    So far we kept the amount of work fixed, and we increased the number of workers.
+
+    The speedup, as defined for this setting, measures \emph{strong scalability.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Weak scalability}
+
+    Let us now increase the number of workers, keeping the amount of work per worker fixed.
+
+    In other words, consider the time $T_v^N$ it takes to do the \emph{variable} amount of work
+    \[N=N\underbrace{(s+p)}_{=1}\]
+    using $N$ workers.
+
+    (Note that $T_v^1=T_f^1$ by definition.)
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Weak scalability}
+
+    Let us define performance and efficiency as
+    \[P_v^N=\frac{N}{T_v^N}\]
+    and
+    \[E_v^N=\frac{P_v^N}{P_v^1}=\frac{T_v^1}{T_v^N}.\]
+
+    The efficiency, as defined for a variable amount of work, measures \emph{weak scalability}.
+    \conclude{Compare it to the definition of $E_f^N=\frac{T_f^1}{NT_f^N}$ in the strong scalability setting!}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    Let us separate $T_f^N$ into
+    \[T_f^N=T_{f,s}+T_{f,p}^N,\]
+    where
+    \begin{itemize}
+      \item $T_{f,s}$ is the time required to do the fraction $s$ of the total amount of work $s+p=1$ which cannot be parallelized, and
+      \item $T_{f,p}^N$ is the time required to do the remaining fraction $p$ of the work in parallel.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    Assume perfect\footnote{\tiny In some circumstances, \emph{superlinear} scaling can be observed, i.e., $T_{f,p}^N<T_{f,p}^1/N$.} strong scalability, i.e.,
+    \[T_{f,p}^N=\frac{T_{f,p}^1}N.\]
+
+    Then the speedup is
+    \[S^N = \frac{T_f^1}{T_f^N} = \frac{T_f^1}{T_{f,s}+T_{f,p}^N} = \frac{T_f^1}{T_{f,s}+\frac{T_{f,p}^1}N} = \frac{T_f^1}{T_{f,s}+\frac{T_f^1-T_{f,s}}N}.\]
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    After simplifying, we obtain
+    \[S^N = \frac{T_f^1}{T_{f,s}+\frac{T_f^1-T_{f,s}}N} = \frac{T_f^1}{\left(1-\frac 1N\right)T_{f,s}+\frac{T_f^1}N} = \frac 1{\left(1-\frac 1N\right)s+\frac 1N},\]
+    i.e.,
+    \[S^N=\frac 1{s+\frac{1-s}N}\]
+    (Amdahl's law).
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    Amdahl's law tells us the speedup assuming perfect strong scalability.
+
+    In particular, it implies that the speedup is limited, because
+    \[S^N=\frac 1{s+\frac{1-s}N}\stackrel{N\rightarrow\infty}{\longrightarrow}\frac 1s.\]
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    \emph{Example:} Suppose that 90\% of an application's work can be done in parallel, while 10\% ($s=0.1)$ must be done sequentially.
+
+    Assuming perfect strong scalability, the speedup achieved when using $N=10$ workers instead of one is
+    \[S^N=\frac 1{s+\frac{1-s}N}=\frac 1{0.1+\frac{0.9}{10}}\approx 5.26.\]
+
+    Furthermore, the speedup can never exceed
+    \[\frac 1s=\frac 1{0.1}=10.\]
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    More generally, Amdahl's law says that
+    \[S=\frac 1{s+\frac{1-s}{S_p}},\]
+    where $S_p$ is the speedup experienced by the fraction $p$ of the total amount of work.
+
+    So far we assumed $S_p=N$.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    In its general form, Amdahl's law is useful in many contexts.
+
+    \emph{Example:} By code optimization, 43\% of the total work in a sequential code can be accelerated by a factor of $1.6$.
+
+    Then the speedup for the overall application is
+    \[S=\frac 1{0.57+\frac{0.43}{1.6}}\approx 1.19.\]
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Amdahl's law}
+
+    In its general form, Amdahl's law is useful in many contexts.
+
+    \emph{Example:} An application spends 17\% of its time reading from and writing to a hard drive.
+
+    The hard drive is replaced with a newer drive that is faster by a factor of $3.2$.
+
+    Then the speedup for the overall application is
+    \[S=\frac 1{0.83+\frac{0.17}{3.2}}\approx 1.13.\]
+  \end{frame}
+\end{document}
