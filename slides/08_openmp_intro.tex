@@ -1,0 +1,262 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+% Footnotes without a number
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{Introduction to OpenMP}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Overview}
+
+    \begin{itemize}
+      \item What is OpenMP?
+      \item When to use OpenMP
+      \item Using OpenMP in C code
+      \item Compiling, linking, and running OpenMP code
+      \item The fork-join model
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{What is OpenMP}
+
+    OpenMP (Open Multi-Processing) is an API for multi-processing, mainly multi-threading, in C, C++, and Fortran.
+
+    \begin{itemize}
+      \item 1997: OpenMP 1.0 (Fortran)
+      \item 1998: First OpenMP standard for C and C++
+      \item 2000: OpenMP 2.0 (mainly parallelization of loops)
+      \item 2008: OpenMP 3.0 (task parallelism)
+      \item 2013: OpenMP 4.0 (accelerators, SIMD)
+      \item 2018: OpenMP 5.0
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{When to use OpenMP}
+
+    OpenMP implements shared memory parallelism with multi-threading (and accelerators).
+
+    Hence, it is suitable for
+    \begin{itemize}
+      \item multi-core CPUs,
+      \item multi-CPU systems, and
+      \item systems with accelerators.
+    \end{itemize}
+
+    It is not suitable for distributed memory environments such as computer clusters.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using OpenMP in C code}
+
+    OpenMP consists of two main components: \emph{preprocessor directives} and a \emph{library} of functions.
+
+    \begin{code}
+#include <omp.h>
+
+// ...
+
+{
+  // Use an OpenMP preprocessor directive.
+  #pragma omp parallel
+  {
+    // Call an OpenMP library function.
+    const int thread_num = omp_get_thread_num();
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Using OpenMP in C code}
+
+    Why this design?
+
+    Pros:
+    \begin{itemize}
+      \item Preprocessor directives can be used to annotate and parallelize existing code.
+      \item If the compiler does not support OpenMP, it can simply ignore the directives.
+    \end{itemize}
+
+    Cons:
+    \begin{itemize}
+      \item Directives can be somewhat limiting.
+      \item Compilers must support OpenMP.
+      \item Some compilers are bad at this: Microsoft Visual Studio supports OpenMP 2.0 (2000).
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiling, linking, and running OpenMP code}
+
+    Consider the following example:
+    \begin{code}
+#pragma omp parallel
+{
+  const int thread_num = omp_get_thread_num();
+  const int num_threads = omp_get_num_threads();
+  printf("hello, world from thread %d/%d!\n",
+         thread_num, num_threads);
+}
+    \end{code}
+
+    \conclude{By default, the compiler will ignore the OpenMP directive, and the linker will not find \texttt{omp\_get\_num\_threads()} etc.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiling, linking, and running OpenMP code}
+
+    Consider the following example:
+    \begin{code}
+#pragma omp parallel
+{
+  const int thread_num = omp_get_thread_num();
+  const int num_threads = omp_get_num_threads();
+  printf("hello, world from thread %d/%d!\n",
+         thread_num, num_threads);
+}
+    \end{code}
+
+    \conclude{By default, the compiler will ignore the OpenMP directive, and the linker will not find \texttt{omp\_get\_num\_threads()} etc.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiling, linking, and running OpenMP code}
+
+    We must instruct the compiler to consider OpenMP directives.
+
+    For GCC, use the \texttt{-fopenmp} flag.
+
+    If compilation and linking are done separately, use the \texttt{-fopenmp} flag for both!
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Compiling, linking, and running OpenMP code}
+
+    We can run OpenMP applications just like any other application.
+
+    How does OpenMP know how many threads to use?
+    \begin{itemize}
+      \item The \texttt{OMP\_NUM\_THREADS} environment variable can be used to set the initial number of threads.
+      \item The number of threads can be modified using the \texttt{omp\_set\_num\_threads()} function anywhere in the code.
+      \item The number of threads can be set in the OpenMP directive, e.g.,\codeline{#pragma omp parallel num_threads(4)}
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The fork-join model}
+
+    When entering a parallel region, an OpenMP application \emph{forks} into multiple threads.
+
+    All threads \emph{join} with the \emph{master thread} when leaving the parallel region.
+
+    OpenMP will create and finish threads automatically as needed.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The fork-join model}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=\linewidth]{figures/omp_fork_join.png}
+    \end{figure}
+    \blfootnote{https://en.wikipedia.org/wiki/Fork\%E2\%80\%93join\_model\#/media/File:Fork\_join.svg}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The fork-join model}
+
+    Recall that threads are scheduled and executed \emph{independently} by the OS.
+    \conclude{They are not executed in any particular order, in one piece, etc.!}
+
+    Recall that threads are a software concept.
+    \conclude{It is possible to run more threads than there are CPU cores (oversubscription).}
+  \end{frame}
+\end{document}

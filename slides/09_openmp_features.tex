@@ -1,0 +1,560 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+% Footnotes without a number
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{Main Features of OpenMP}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Parallel computation: an example}
+
+    Suppose we want to integrate a function
+    \[f:\left[a,b\right]\rightarrow\mathbb R\]
+    numerically using the composite trapezoidal rule
+    \[\int_a^b f(x)dx\approx h\sum_{i=0}^{n-1}\frac{f(x_i)+f(x_{i+1})}2,\]
+    where $x_0=a$, $x_n=b$, and
+    \[x_{i+1}-x_i=h\]
+    for $i=0,\ldots,n-1$.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Parallel computation: an example}
+
+    Our goal is to implement a function \texttt{quad\_trapezoidal()} that approximates the integral \emph{in parallel} using OpenMP.
+
+    What signature should the function have?
+    \pause
+    \begin{code}
+double quad_trapezoidal(double (*f)(double),
+                        double a,
+                        double b,
+                        int n);
+    \end{code}
+    \conclude{Let us try to implement the function with our current knowledge of OpenMP.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Parallel computation: an example}
+
+    As a reasonably challenging test, we will approximate
+    \[\int_0^{\frac{\pi}2}\sin(x)+x\ dx=\frac{\pi^2}8+1.\]
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Parallel computation: an example}
+
+    Did our first attempt work?
+
+    No, we get random results.
+    \conclude{There is a \emph{data race} in the code!}
+
+    If multiple threads modify the same variable (here: \texttt{sum}), their updates can interfere!
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Shared and private variables}
+
+    Variables in an OpenMP application can be \emph{shared} between threads or \emph{private} to each thread.
+
+    By default, variables are
+    \begin{itemize}
+      \item private if declared within a parallel region, and
+      \item shared if declared before a parallel region.
+    \end{itemize}
+
+    \begin{code}
+int shared_var;
+
+#pragma omp parallel
+{
+  int private_var;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Shared and private variables}
+
+    Alternatively, variables can be declared as shared or private for a parallel region.
+    \begin{code}
+int shared_var, private_var;
+
+#pragma omp parallel shared(shared_var) \
+                     private(private_var)
+{
+  // ...
+}
+    \end{code}
+    \emph{Note:}
+    \begin{itemize}
+      \item The \texttt{shared} clause is redundant in this case.
+      \item The \texttt{private} clause is necessary unless C99 is used.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Shared and private variables}
+
+    \emph{Caution:} If declared outside a parallel region, the value of a private variable is \emph{undefined} inside the parallel region.
+    \begin{code}
+int private_var = 123;
+
+#pragma omp parallel private(private_var)
+{
+  // Value of private_var is undefined!
+}
+    \end{code}
+    \conclude{Consider using \texttt{firstprivate} instead of \texttt{private}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Shared and private variables}
+
+    \emph{Caution:} If declared outside a parallel loop, the value of a private variable is \emph{undefined} after the parallel loop.
+    \begin{code}
+int private_var;
+
+#pragma omp parallel private(private_var)
+{
+  // ...
+}
+// Value of private_var is undefined!
+    \end{code}
+    \conclude{Consider using \texttt{lastprivate} instead of \texttt{private}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Shared and private variables}
+
+    \emph{Caution:} The code below does \emph{not} create a private array for each thread.
+    \begin{code}
+int *array = malloc(8*sizeof(int));
+
+#pragma omp parallel
+{
+  // Each thread has its own private pointer
+  // to the *same* array!
+}
+    \end{code}
+  \end{frame}
+
+
+  \begin{frame}[fragile]
+    \frametitle{Data races}
+
+    Data races can occur when a shared resource, e.g., a variable, is modified.
+
+    Data races can be hard to fix, because they can easily go unnoticed.
+    \conclude{Whether the \emph{race condition} occurs is random!}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Data races}
+
+    \emph{Example:} Multiple threads write to a shared variable, causing a data race.
+    \begin{code}
+int sum = 0;
+
+#pragma omp parallel
+{
+  sum += omp_get_thread_num();
+}
+    \end{code}
+    \conclude{Note that \texttt{+=} involves both reading and writing!}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Data races}
+
+    To avoid data races, we must ensure that when a thread modifies a shared resource, no other thread reads from or writes to it concurrently.
+    \conclude{\emph{Mutual exclusion} (mutex)}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Locks}
+
+    Mutexes are called \emph{locks} in OpenMP:
+    \begin{code}
+omp_lock_t lock;
+omp_init_lock(&lock);
+#pragma omp parallel
+{
+  // ...
+  omp_set_lock(&lock);
+  // Only one thread can be have the lock
+  // set at any given time.
+  omp_unset_lock(&lock);
+  // ...
+}
+omp_destroy_lock(&lock);
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Deadlocks}
+
+    When locks are used, \emph{deadlocks} can occur!
+    \begin{code}
+void transfer(account_t a, account_t b, int amount)
+{
+  omp_set_lock(&a.lock);   // Lock account A.
+  withdraw(a, amount);
+  omp_set_lock(&b.lock);   // Lock account B.
+  deposit(b, amount);
+  omp_unset_lock(&b.lock); // Release account B.
+  omp_unset_lock(&a.lock); // Release account A.
+}
+    \end{code}
+    \conclude{What happens if one thread calls \texttt{transfer(a,~b,~100)} while another thread is processing \texttt{transfer(b, a, 50)}?}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{critical} directive}
+
+    Locks/mutexes are cumbersome. Is there a simpler way?
+
+    Yes, the \texttt{critical} directive:
+    \begin{code}
+#pragma omp parallel
+{
+  // ...
+  #pragma omp critical
+  {
+    // Only one thread can be inside the
+    // critical block at any given time.
+  }
+  // ...
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{for} directive}
+
+    Distributing loop iterations among threads is cumbersome.
+
+    Again, there is a simpler way to do it:
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp for
+  for (int i = 0; i < n; i++) {
+    // The n loop iterations will be distributed
+    // among threads automatically.
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{for} directive}
+
+    A parallel region which only contains a single for loop can be simplified as follows:
+
+    \begin{code}
+#pragma omp parallel for
+for (int i = 0; i < n; i++) {
+  // The n loop iterations will be distributed
+  // among threads automatically.
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{for} directive}
+
+    The \texttt{for} directive is not only more convenient than manual distribution of loop iterations. It is also a generalization:
+
+    \begin{code}
+#pragma omp parallel for schedule(SCHEDULE)
+for (int i = 0; i < n; i++) {
+  // ...
+}
+    \end{code}
+    Possible values for \texttt{SCHEDULE} are \texttt{static}, \texttt{dynamic}, \texttt{guided}, and \texttt{auto}.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{for} directive}
+
+    \emph{Caution:} Not every loop can be parallelized, as dependencies between iterations can lead to data races.
+
+    \begin{code}
+#pragma omp parallel for
+for (int i = 2; i < n; i++) {
+  fibonacci[i] = fibonacci[i - 1]
+               + fibonacci[i - 2]; 
+}
+    \end{code}
+    \conclude{The above code will compile without warning!}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{for} directive}
+
+    Is there anything left to simplify?
+
+    Yes, results from all iterations of a parallel loop can be combined using the \texttt{reduction} clause:
+    \begin{code}
+#pragma omp parallel for reduction(OP:VAR)
+for (int i = 0; i < n; i++) {
+  // Each thread has a private instance of VAR.
+  // At the end of the loop, all values of VAR
+  // are combined using the operator OP.
+}
+    \end{code}
+    Possible values for \texttt{OP} are \texttt{+}, \texttt{-}, \texttt{*}, \texttt{min}, \texttt{max}, \texttt{\&}, \texttt{\&\&}, \texttt{|}, \texttt{||}, \texttt{\^}.
+    Custom operators can also be defined.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{for} directive}
+
+    \emph{Example:} Compute the Euclidean norm of a vector using reductions.
+    \begin{code}
+double sum;
+#pragma omp parallel for reduction(+:sum)
+for (int i = 0; i < n; i++) {
+  sum += x[i]*x[i];
+}
+return sqrt(sum);
+    \end{code}
+
+    \emph{Note:} Each threads copy of the reduction variable is initialized with the neutral element of the reduction operator, e.g., zero for \texttt{+}, one for \texttt{*}, etc.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Barriers}
+
+    If we need to synchronize all threads, we can use a \emph{barrier}:
+
+    No thread can get past the barrier before \emph{all} threads have reached it.
+    \begin{code}
+#pragma omp parallel
+{
+  // ...
+
+  // Wait for other threads.
+  #pragma omp barrier
+
+  // ...
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Barriers}
+
+    \emph{Example:} Ensure that other threads have finished their work before we use their results.
+    \begin{code}
+#pragma omp parallel
+{
+  const int id = omp_get_thread_num();
+  results[id] = do_work(id);
+
+  #pragma omp barrier
+
+  // Do something with results from other threads.
+  do_more_work((id + 1)%omp_get_num_threads());
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Barriers}
+
+    The end of a parallel region or a parallel for loop is an \emph{implicit barrier}.
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp for
+  for (int i = 0; i < n; i++) {
+    // ...
+  } // Implicit barrier!
+
+  // No thread gets here before all
+  // threads have finished the loop.
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Barriers}
+
+    Barriers tend to make it easier to write correct code without data races, but they cause idling and synchronization.
+    \conclude{Avoid unnecessary barriers to improve performance!}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Barriers}
+
+    Implicit barriers can be avoided using the \texttt{nowait} clause:
+    \begin{code}
+#pragma omp parallel for nowait
+for (int i = 0; i < n; i++) {
+  // ...
+}
+
+#pragma omp parallel for
+for (int i = 0; i < n; i++) {
+  // ...
+}
+    \end{code}
+    \conclude{\emph{Caution:} This is a data race if the second loop depends on results from the first.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Barriers}
+
+    If used improperly, barriers can also cause deadlocks.
+    \begin{code}
+#pragma omp parallel for
+for (int i = 0; i < n; i++) {
+  #pragma omp barrier
+}
+    \end{code}
+    \conclude{Causes a deadlock unless each thread performs exactly the same number of loop iterations.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{single} and \texttt{master} directives}
+
+    Use the \texttt{single} directive if part of a parallel region is to be executed by only one thread.
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp single
+  {
+    shared_data = malloc(size);
+  }
+
+  #pragma omp barrier
+
+  // ...
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{single} and \texttt{master} directives}
+
+    If only the master thread should execute part of a parallel region, use the \texttt{master} directive.
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp master
+  {
+    // Much like "single," but the single
+    // thread which executes this block
+    // must be the master thread.
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{sections} directive}
+
+    If multiple, independent blocks of code are to be executed in parallel, use sections.
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp sections
+  {
+    #pragma omp section
+    {
+      // 1st block
+    }
+    #pragma omp section
+    {
+      // 2nd block
+...
+    \end{code}
+  \end{frame}
+\end{document}
