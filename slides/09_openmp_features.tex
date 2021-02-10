@@ -216,7 +216,7 @@ int private_var;
     \begin{code}
 int *array = malloc(8*sizeof(int));
 
-#pragma omp parallel
+#pragma omp parallel firstprivate(array)
 {
   // Each thread has its own private pointer
   // to the *same* array!
