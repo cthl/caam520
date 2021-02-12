@@ -478,14 +478,13 @@ return sqrt(sum);
 
     Implicit barriers can be avoided using the \texttt{nowait} clause:
     \begin{code}
-#pragma omp parallel for nowait
-for (int i = 0; i < n; i++) {
-  // ...
-}
+#pragma omp parallel
+{
+  #pragma omp for nowait
+  for (int i = 0; i < n; i++) { /* ... */ }
 
-#pragma omp parallel for
-for (int i = 0; i < n; i++) {
-  // ...
+  #pragma omp for
+  for (int i = 0; i < n; i++) { /* ... */ }
 }
     \end{code}
     \conclude{\emph{Caution:} This is a data race if the second loop depends on results from the first.}
