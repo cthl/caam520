@@ -441,7 +441,9 @@ return sqrt(sum);
   #pragma omp barrier
 
   // Do something with results from other threads.
-  do_more_work((id + 1)%omp_get_num_threads());
+  const int neighbor_id
+    = (id + 1)%omp_get_num_threads();
+  do_more_work(results[neighbor_id]);
 }
     \end{code}
   \end{frame}

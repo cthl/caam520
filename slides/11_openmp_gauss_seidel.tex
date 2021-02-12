@@ -1,0 +1,187 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+% Footnotes without a number
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{OpenMP: An Advanced Example}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Motivation}
+
+    Our examples so far were simple in the sense that adding an OpenMP directive to a loop was usually sufficient.
+
+    In general, parallelization can be more complicated due to dependencies between loop iterations.
+    \conclude{Let us consider such an example.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The heat equation}
+
+    We want to solve the heat equation
+    \begin{align*}
+      \partial_t u-\Delta u &= f && \text{in }\Omega\times (0,T),\\
+      u &= 0 && \text{on }\partial\Omega\times (0, T),\\
+      u &= u_0 && \text{on }\Omega\times\left\{0\right\},
+    \end{align*}
+    where $\Omega=\left[0,1\right]^3$, $u$ is the temperature, and $f$ describes heat sources and heat sinks inside $\Omega$.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Poisson's equation}
+
+    Instead of solving the full time-dependent problem, we are interested in the \emph{steady state} solution which satisfies $\partial_t u=0$.
+
+    This leads to the \emph{Poisson problem}
+    \begin{align*}
+      -\Delta u &= f && \text{in }\Omega,\\
+      u &= 0 && \text{on }\partial\Omega.
+    \end{align*}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Finite difference discretization}
+
+    To discretize the equation, we introduce $n^3$ grid points
+    \[
+      x_{ijk}=\left(ih,jh,kh\right)^T,
+    \]
+    where $i,j,k=0,\ldots,n-1$ and $h=\frac 1{n-1}$.
+
+    For convenience, we define
+    \[
+      u_{ijk}=u(x_{ijk})
+    \]
+    etc.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Finite difference discretization}
+
+    Discretizing the equation using finite differences (at an interior point $x_{ijk}$) yields
+    \[
+      \frac{-u_{i-1jk} - u_{ij-1k} - u_{ijk-1} + 6u_{ijk} - u_{i+1jk} - u_{ij+1k} - u_{ijk+1}}{h^2}=f_{ijk},
+    \]
+    or equivalently
+    \[
+      u_{ijk}=\frac{h^2f_{ijk} + u_{i-1jk} + u_{ij-1k} + u_{ijk-1} + u_{i+1jk} + u_{ij+1k} + u_{ijk+1}}6,
+    \]
+    i.e., a linear system.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The Jacobi iteration}
+
+    The linear system can be written in matrix form and solved, e.g., with Gaussian elimination.
+
+    Since it is \emph{sparse}, it can also be solved iteratively.
+    The simplest iterative method is the \emph{Jacobi} iteration
+    \[
+      u_{ijk}^\text{new}\leftarrow\frac{h^2f_{ijk} + u_{i-1jk}^\text{old} + u_{ij-1k}^\text{old} + u_{ijk-1}^\text{old} + u_{i+1jk}^\text{old} + u_{ij+1k}^\text{old} + u_{ijk+1}^\text{old}}6,
+    \]
+    \conclude{This method is straightforward to parallelize, but requires many iterations.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The Gauss--Seidel iteration}
+
+    Another method, which converges faster in the sense that it requires fewer iterations, is the \emph{Gauss--Seidel} iteration
+    \[
+      u_{ijk}^\text{new}\leftarrow\frac{h^2f_{ijk} + u_{i-1jk}^\text{new} + u_{ij-1k}^\text{new} + u_{ijk-1}^\text{new} + u_{i+1jk}^\text{old} + u_{ij+1k}^\text{old} + u_{ijk+1}^\text{old}}6.
+    \]
+    \conclude{Since $u_{ijk}^\text{new}$ depends on updated values at other grid points, how can we parallelize the iteration?}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Remark}
+
+    In practice, the tradeoff between the number of iterations and the per-iteration cost is nontrivial.
+
+    It depends on the problem at hand whether the Jacobi method or the Gauss--Seidel method yields in lower time-to-solution.
+  \end{frame}
+\end{document}
