@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <omp.h>
 
 const double PI = 3.141592653589793;
 
@@ -13,7 +14,9 @@ double quad_trapezoidal(double (*f)(double), double a, double b, int n)
   const double h = (b - a)/n;
 
   double sum = 0.0;
-  for (int i = 0; i < n; i++) {
+
+  #pragma omp parallel for reduction(+:sum)
+  for (int i = 0 i < n; i++) {
     sum += 0.5*(f(a + i*h) + f(a + (i + 1)*h));
   }
 
@@ -22,7 +25,7 @@ double quad_trapezoidal(double (*f)(double), double a, double b, int n)
 
 int main()
 {
-  const int n[] = {4, 16, 32, 64, 128, 256};
+  const int n[] = {4, 16, 32, 64, 128, 256, 512};
   const double I_true = 1.0 + PI*PI/8.0;
 
   for (int j = 0; j < sizeof(n)/sizeof(int); j++) {
