@@ -31,18 +31,20 @@ void jacobi(double *u, const double *f, int n, int num_iter)
     memcpy(u_old, u, n*n*n*sizeof(double));
 
     // Compute the Jacobi update.
+    // Simply add the following annotation for OpenMP parallelism:
+    //#pragma omp parallel for
     for (int k = 0; k < n; k++) {
       for (int j = 0; j < n; j++) {
         for (int i = 0; i < n; i++) {
           const int index = IJK2INDEX(i, j, k, n);
 
-          u[index] = h2*f[IJK2INDEX(i, j, k, n)];
+          u[index] = h2*f[index];
 
-          if (i > 1)     u[index] += u_old[IJK2INDEX(i - 1, j,     k,     n)];
+          if (i > 0)     u[index] += u_old[IJK2INDEX(i - 1, j,     k,     n)];
           if (i < n - 1) u[index] += u_old[IJK2INDEX(i + 1, j,     k,     n)];
-          if (j > 1)     u[index] += u_old[IJK2INDEX(i,     j - 1, k,     n)];
+          if (j > 0)     u[index] += u_old[IJK2INDEX(i,     j - 1, k,     n)];
           if (j < n - 1) u[index] += u_old[IJK2INDEX(i,     j + 1, k,     n)];
-          if (k > 1)     u[index] += u_old[IJK2INDEX(i,     j,     k - 1, n)];
+          if (k > 0)     u[index] += u_old[IJK2INDEX(i,     j,     k - 1, n)];
           if (k < n - 1) u[index] += u_old[IJK2INDEX(i,     j,     k + 1, n)];
 
           u[index] /= 6.0;
@@ -93,8 +95,8 @@ int main(int argc, char **argv)
 
   // Compute error norm.
   // Specifically, compute ||u - u_exact||_2/||u_exact||_2.
-  double norm_error;
-  double norm_u_exact;
+  double norm_error = 0.0;
+  double norm_u_exact = 0.0;
   for (int k = 0; k < n; k++) {
     for (int j = 0; j < n; j++) {
       for (int i = 0; i < n; i++) {

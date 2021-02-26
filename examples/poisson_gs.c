@@ -29,11 +29,11 @@ void gauss_seidel(double *u, const double *f, int n, int num_iter)
         for (int i = 0; i < n; i++) {
           double u_new = h2*f[IJK2INDEX(i, j, k, n)];
 
-          if (i > 1)     u_new += u[IJK2INDEX(i - 1, j,     k,     n)];
+          if (i > 0)     u_new += u[IJK2INDEX(i - 1, j,     k,     n)];
           if (i < n - 1) u_new += u[IJK2INDEX(i + 1, j,     k,     n)];
-          if (j > 1)     u_new += u[IJK2INDEX(i,     j - 1, k,     n)];
+          if (j > 0)     u_new += u[IJK2INDEX(i,     j - 1, k,     n)];
           if (j < n - 1) u_new += u[IJK2INDEX(i,     j + 1, k,     n)];
-          if (k > 1)     u_new += u[IJK2INDEX(i,     j,     k - 1, n)];
+          if (k > 0)     u_new += u[IJK2INDEX(i,     j,     k - 1, n)];
           if (k < n - 1) u_new += u[IJK2INDEX(i,     j,     k + 1, n)];
 
           u_new /= 6.0;
@@ -83,8 +83,8 @@ int main(int argc, char **argv)
   gauss_seidel(u, f, n, num_iter);
 
   // Compute error norm.
-  double norm_error;
-  double norm_u_exact;
+  double norm_error = 0.0;
+  double norm_u_exact = 0.0;
   for (int k = 0; k < n; k++) {
     for (int j = 0; j < n; j++) {
       for (int i = 0; i < n; i++) {
