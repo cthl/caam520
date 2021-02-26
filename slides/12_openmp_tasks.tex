@@ -1,0 +1,262 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+% Footnotes without a number
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{OpenMP Tasks}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Motivation}
+
+    So far all of our OpenMP code was loop based.
+
+    How can we implement more general multi-threaded algorithms?
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Tasks}
+
+    OpenMP tasks allow us to offload any "chunk" of work to a thread.
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp single
+  {
+    #pragma omp task
+    foo();
+
+    #pragma omp task
+    bar();
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Tasks}
+
+    In this example \texttt{foo()} and \texttt{bar()} will be executed as tasks.
+
+    The OpenMP runtime environment schedules the tasks:
+    \begin{itemize}
+      \item Tasks can be executed by any thread.
+      \item Tasks can be executed in any order.
+    \end{itemize}
+    \conclude{Why do we need a \texttt{single} directive inside the parallel region?}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Data environment for tasks}
+
+    A task views variables as
+    \begin{itemize}
+      \item \texttt{firstprivate}, if the variable was \texttt{private} to the thread that created the task.
+      \item \texttt{shared}, if the variable was \texttt{shared} in the thread that created the task.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Data environment for tasks}
+
+    \begin{code}
+int i;
+
+#pragma omp parallel
+{
+  int j;
+
+  #pragma omp task
+  {
+    // Task has a "shared" view of i.
+    // Task has a "firstprivate" copy of j.
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Data environment for tasks}
+
+    The data environment can become complicated.
+
+    To be safe, use defaults!
+
+    \begin{code}
+int i;
+#pragma omp parallel
+{
+  int j;
+  #pragma omp task shared(i) firstprivate(j) \
+                   default(none)
+  {
+    // The default(none) clause requires that
+    // any variable is declared as shared or
+    // firstprivate *explicitly*!
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Tasks and barriers}
+
+    An OpenMP barrier enforces the completion of \emph{all} incomplete tasks that were created in the current parallel environment.
+
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp single
+  for (int i = 0; i < 4; i++) {
+    #pragma omp task
+    do_work(i);
+  }
+  #pragma omp barrier
+
+  // All tasks are complete at this point.
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{taskwait} directive}
+
+    The \texttt{taskwait} directive enforces the completion of all \emph{child} tasks.
+
+    It does not synchronize threads in any other way, i.e., it is weaker than a barrier.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Tasks and dependencies}
+
+    Why do we \emph{need} tasks?
+
+    Why not just use the \texttt{single} directive?
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp single
+  foo();
+
+  #pragma omp single
+  bar();
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Tasks and dependencies}
+
+    OpenMP allows us to express dependencies between tasks:
+    \begin{code}
+#pragma omp parallel
+{
+  #pragma omp single
+  {
+    #pragma omp task depend(out:x)
+    x = foo();
+    // First task must finish before 
+    // this task can run.
+    #pragma omp task depend(in:x)
+    bar(x);
+  }
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Tasks and dependencies}
+
+    Dependencies can be expressed by adding \texttt{depend(type:list)} clauses to the \texttt{task} directive, where
+    \begin{itemize}
+      \item \texttt{type} can be \texttt{in}, \texttt{out}, \texttt{inout}, among other options, and
+      \item \texttt{list} is a comma-separated list of variables.
+    \end{itemize}
+    \conclude{Instead of individual variables, we can also specify ranges within arrays in the format \texttt{my\_array[start:length]}.}
+  \end{frame}
+\end{document}
