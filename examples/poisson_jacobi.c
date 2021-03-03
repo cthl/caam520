@@ -7,7 +7,7 @@
 #include <string.h> // for memcpy()
 
 #define M_PI 3.141592653589793
-#define IJK2INDEX(I, J, K, N) (N*N*K + N*J + I)
+#define IJK2INDEX(I, J, K, N) ((N)*(N)*(K) + (N)*(J) + (I))
 
 double u_exact(double x, double y, double z)
 {
