@@ -1,0 +1,425 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+% Footnotes without a number
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{Introduction to MPI}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{Overview}
+
+    \begin{itemize}
+      \item Distributed vs.\ shared memory parallelism
+      \item Idea of message passing
+      \item The Message Passing Interface (MPI)
+      \item A basic example
+      \item Running MPI applications
+      \item Communicators
+      \item Sending and receiving data
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Distributed vs.\ shared memory parallelism}
+
+    So far we used shared memory parallelism.
+    \conclude{Workers were OpenMP \emph{threads}.}
+
+    Next, we will learn about distributed memory parallelism.
+    \conclude{Workers will be MPI \emph{processes}.}
+
+    \emph{Key difference:} Multi-threading is limited to a single computer, while processes on \emph{different} computers can communicate via network.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Idea of message passing}
+
+    By default, processes do not share memory.
+
+    If they do, such sharing is again limited to a single computer.
+
+    Instead, processes can \emph{pass messages} between each other, i.e., they send and receive packages of data.
+    \conclude{This approach works between processes on the same computer and between processes on different computers in a network.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The Message Passing Interface (MPI)}
+
+    MPI is the standard interface for message passing and can be considered the standard for distributed memory parallelism.
+
+    \begin{itemize}
+      \item 1994: MPI 1.0
+      \item 1997: MPI 2.0
+      \item 2012: MPI 3.0
+      \item MPI 4.0 is work in progress.
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{MPI - a first example}
+
+    \begin{code}
+#include <mpi.h>
+
+int main(int argc, char **argv)
+{
+  MPI_Init(&argc, &argv);
+  int rank, size;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  printf("hello world from rank %d out of %d\n",
+         rank, size);
+  MPI_Finalize();
+  return 0;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Building MPI applications}
+
+    How can we build an MPI application?
+
+    Unlike OpenMP, which essentially extends C, C++, and Fortran, the MPI standard defines a function library.
+
+    Hence, there exist several competing implementations of MPI, many of which are independent of a specific language or compiler:
+    \begin{itemize}
+      \item MPICH
+      \item MVAPICH2
+      \item Open MPI (not to be confused with OpenMP)
+      \item Intel MPI
+      \item Cray MPI
+      \item Microsoft MPI
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Building MPI applications}
+
+    To compile MPI code, we must tell the compiler where \texttt{mpi.h} is, where the MPI library is, etc.
+
+    For convenience, MPI implementations provide \emph{compiler wrappers}:
+    \begin{itemize}
+      \item \texttt{mpicc} - C compiler
+      \item \texttt{mpicxx} - C++ compiler
+      \item \texttt{mpif90} - Fortran 90 compiler
+    \end{itemize}
+    \conclude{These are not compilers, just wrappers around GCC, the Intel compiler, etc.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Running MPI applications}
+
+    How can we run an MPI application?
+
+    We must start \emph{multiple} processes, possibly on different computers.
+
+    MPI implementations provide \texttt{mpiexec} and \texttt{mpirun} to do so.
+    For example,
+    \cmd{mpirun -n 4 ./my\_mpi\_app}
+    starts four MPI processes on the local computer and "connects" them.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Running MPI applications}
+
+    Always make sure that you compile and run your application using the same MPI implementation!
+
+    For example, you cannot compile your application with Open MPI and then run it with MVAPICH2's \texttt{mpirun}.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Initializing MPI}
+
+    MPI must be initialized before it can be used, and it must be finalized at the end of your application.
+    \begin{code}
+#include <mpi.h>
+
+int main(int argc, char **argv)
+{
+  MPI_Init(&argc, &argv);
+
+  // ...
+
+  MPI_Finalize();
+  return 0;
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Communicators}
+
+    A \emph{communicator} defines a subset of the MPI processes that were started with \texttt{mpirun}.
+
+    Individual processes within a communicator are identified with a unique ID, the \emph{rank}.
+
+    The communicator that contains \emph{all} processes is \texttt{MPI\_COMM\_WORLD}.
+    \conclude{We will use \texttt{MPI\_COMM\_WORLD} most of the time.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{How can ranks share data?}
+
+    \begin{code}
+int rank, size;
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+const int my_result = do_work(rank);
+
+// Add results from all ranks.
+int sum = 0;
+for (int r = 0; r < size; r++) {
+  // sum += ???;
+}
+
+    \end{code}
+    \conclude{How can ranks access each other's data?}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Sending data with \texttt{MPI\_Send}}
+
+    To send data to other ranks, we can use \texttt{MPI\_Send()}:
+    \begin{code}
+int MPI_Send(void *buf,
+             int count,
+             MPI_Datatype datatype,
+             int dest,
+             int tag,
+             MPI_Comm comm)
+    \end{code}
+    \conclude{Send \texttt{count} contiguous items of type \texttt{datatype}, starting at \texttt{buf}, to rank \texttt{dest} in the communicator \texttt{comm}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Sending data with \texttt{MPI\_Send}}
+
+    Example:
+    \begin{code}
+double *array = malloc(128*sizeof(double));
+
+// Send array to rank 1.
+MPI_Send(array,
+         128,
+         MPI_DOUBLE,
+         1,
+         999,
+         MPI_COMM_WORLD);
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Receiving data with \texttt{MPI\_Recv}}
+
+    The target of a message must accept the message by calling \texttt{MPI\_Recv()}:
+    \begin{code}
+int MPI_Recv(void *buf,
+             int count,
+             MPI_Datatype datatype,
+             int source,
+             int tag,
+             MPI_Comm comm,
+             MPI_Status *status)
+    \end{code}
+    \conclude{Receive a message of (at most) \texttt{count} items of type \texttt{datatype} with tag \texttt{tag} from rank \texttt{source} in the communicator \texttt{comm} and store it in the buffer \texttt{buf}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Receiving data with \texttt{MPI\_Recv}}
+
+    Example:
+    \begin{code}
+double *array = malloc(128*sizeof(double));
+
+// Receive array from rank 0.
+MPI_Status status;
+MPI_Recv(array,
+         128,
+         MPI_DOUBLE,
+         0,
+         999,
+         MPI_COMM_WORLD,
+         &status);
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{MPI\_Status} type}
+
+    The \texttt{MPI\_Status} type contains information about the message, such as
+    \begin{itemize}
+      \item \texttt{status.MPI\_SOURCE},
+      \item \texttt{status.MPI\_TAG},
+    \end{itemize}
+    and the number of items that were received, which can be accessed using
+    \begin{code}
+int MPI_Get_count(const MPI_Status *status,
+                  MPI_Datatype datatype,
+                  int *count)
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{The \texttt{MPI\_Status} type}
+
+    If we are not interested in the status, we can pass \texttt{MPI\_STATUS\_IGNORE} to \texttt{MPI\_Recv} instead of a status variable:
+
+    \begin{code}
+MPI_Recv(array,
+         128,
+         MPI_DOUBLE,
+         0,
+         999,
+         MPI_COMM_WORLD,
+         MPI_STATUS_IGNORE);
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Blocking message passing}
+
+    \texttt{MPI\_Recv()} will block until the message has been received.
+    \conclude{Watch out for deadlocks!}
+
+    \texttt{MPI\_Send()} will block until it is safe to use the send buffer again.
+
+    This does \emph{not} ensure that the message has been received or even that it has been sent.
+    \texttt{MPI\_Ssend()} works just like \texttt{MPI\_Send()}, but it blocks until the message has been received (synchronous send).
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Blocking message passing}
+
+    Blocking communication can cause problems:
+    \begin{code}
+int me, remote, my_data, remote_data;
+
+MPI_Comm_rank(MPI_COMM_WORLD, &me);
+// Assume that there are exactly two ranks.
+remote = 1 - me;
+
+// Exchange data with other rank.
+MPI_Send(&my_data, 1, MPI_INT, remote,
+         999, MPI_COMM_WORLD);
+MPI_Recv(&remote_data, 1, MPI_INT, remote,
+         999, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    \end{code}
+    \conclude{This may or may not result in a deadlock! Why?}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Blocking message passing}
+
+    To avoid deadlocks when exchanging data, we can use \texttt{MPI\_Sendrecv()}:
+    \begin{code}
+int MPI_Sendrecv(const void *sendbuf, int sendcount,
+                 MPI_Datatype sendtype, int dest,
+                 int sendtag,
+                 void *recvbuf, int recvcount,
+                 MPI_Datatype recvtype, int source,
+                 int recvtag,
+                 MPI_Comm comm, MPI_Status *status)
+    \end{code}
+    \conclude{\texttt{MPI\_Sendrecv()} is literally a combination of \texttt{MPI\_Send()} and \texttt{MPI\_Recv()}, but it avoids deadlocks.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Barriers}
+
+    Just like OpenMP, MPI provides barriers to synchronize ranks:
+    \codeline{int MPI_Barrier(MPI_Comm comm)}
+
+    For example, to wait for all MPI processes, use
+    \codeline{MPI_Barrier(MPI_COMM_WORLD);}
+
+    \conclude{As with OpenMP, MPI barriers can cause poor performance and deadlocks.}
+  \end{frame}
+\end{document}
