@@ -1,0 +1,417 @@
+% Document setup
+\documentclass[12pt,t]{beamer}
+\usetheme[outer/progressbar=none]{metropolis}
+% Algorithm environment and layout
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\algloopdefx{Return}{\textbf{return} }
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[T1]{fontenc}
+
+\usepackage{xparse}
+\newbox\FBox
+\NewDocumentCommand\Highlight{O{black}O{white}mO{0.5pt}O{0pt}O{0pt}}{%
+    \setlength\fboxsep{#4}\sbox\FBox{\fcolorbox{#1}{#2}{#3\rule[-#5]{0pt}{#6}}}\usebox\FBox}
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[outdir=./]{epstopdf}
+\usepackage{color}
+\newcommand{\red}[1]{{\color{red}#1}}
+\usepackage{caption}
+\definecolor{RiceBlue}{HTML}{004080}
+\definecolor{BackgroundColor}{rgb}{1.0,1.0,1.0}
+\setbeamercolor{frametitle}{bg=RiceBlue}
+\setbeamercolor{background canvas}{bg=BackgroundColor}
+\setbeamercolor{progress bar}{fg=RiceBlue}
+\setbeamertemplate{caption}[default]
+
+\usepackage{multirow}
+\usepackage{tabularx}
+
+\usepackage{xcolor}
+
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize,showstringspaces=false}
+
+\usepackage{adjustbox}
+
+\usepackage[absolute,overlay]{textpos}
+
+% Footnotes without a number
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{\tiny #1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+%% Overwrite font settings to make text and math font consistent.
+\usepackage[sfdefault,lining]{FiraSans}
+\usepackage[slantedGreek]{newtxsf}
+\renewcommand*\partial{\textsf{\reflectbox{6}}}
+\let\emph\relax % there's no \RedeclareTextFontCommand
+\DeclareTextFontCommand{\emph}{\bfseries\em}
+
+\renewcommand*{\vec}[1]{{\boldsymbol{#1}}}
+
+\newcommand{\conclude}[1]{%
+  \begin{itemize}
+    \item[$\rightarrow$]#1
+  \end{itemize}
+}
+\newcommand{\codeline}[2][]{%
+  \begin{lstlisting}[language=c++,#1]^^J
+    #2^^J
+  \end{lstlisting}
+}
+\newcommand{\codefile}[2][]{\lstinputlisting[language=c++,frame=single,breaklines=true,#1]{#2}}
+\lstnewenvironment{code}{\lstset{language=c++,frame=single}}{}
+\newcommand{\cmd}[1]{\begin{center}\texttt{#1}\end{center}}
+
+
+\begin{document}
+  % Title page
+  \title{MPI Collectives}
+  \subtitle{Computational Science II (CAAM 520)}
+  \author{Christopher Thiele}
+  \date{Rice University, Spring 2021}
+
+  \setbeamertemplate{footline}{}
+  \begin{frame}
+    \titlepage
+  \end{frame}
+
+  \setbeamertemplate{footline}{
+    \usebeamercolor[fg]{page number in head}%
+    \usebeamerfont{page number in head}%
+    \hspace*{\fill}\footnotesize-\insertframenumber-\hspace*{\fill}
+    \vspace*{0.1in}
+  }
+
+  \begin{frame}[fragile]
+    \frametitle{What are collectives?}
+
+    So far we have introduced MPI communicators as well as \texttt{MPI\_Send()}, \texttt{MPI\_Recv()}, and \texttt{MPI\_Sendrecv()} to pass messages between \emph{individual} ranks within a communicator.
+
+    \emph{Collectives} are operations that are performed by \emph{all} ranks in a communicator.
+
+    Collectives provide convenient and efficient implementations of common communication patterns.
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Synchronizing ranks with \texttt{MPI\_Barrier}}
+
+    We are already familiar with one example of a collective operation: \texttt{MPI\_Barrier}.
+    \begin{code}
+int MPI_Barrier(MPI_Comm comm)
+    \end{code}
+
+    \conclude{Each rank waits for \emph{all} other ranks to reach the barrier.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Broadcasting data with \texttt{MPI\_Bcast}}
+
+    To send data from one rank to all other ranks in the communicator, use \texttt{MPI\_Bcast}:
+    \begin{code}
+int MPI_Bcast(void *buf,
+              int count,
+              MPI_Datatype datatype,
+              int root,
+              MPI_Comm comm)
+    \end{code}
+    \conclude{The rank specified by the \texttt{root} argument broadcasts to all other ranks.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Broadcasting data with \texttt{MPI\_Bcast}}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.6\linewidth]{figures/mpi_bcast.png}
+    \end{figure}
+    \blfootnote{Image source: https://www.wikiwand.com/de/Message\_Passing\_Interface}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Scattering data with \texttt{MPI\_Scatter}}
+
+    \texttt{MPI\_Scatter} works much like \texttt{MPI\_Bcast}, but it sends different data to each rank.
+    \begin{code}
+int MPI_Scatter(const void *sendbuf,
+                int sendcount,
+                MPI_Datatype sendtype,
+                void *recvbuf,
+                int recvcount,
+                MPI_Datatype recvtype,
+                int root,
+                MPI_Comm comm)
+    \end{code}
+    \conclude{\texttt{MPI\_Scatter} sends \texttt{sendcount} items to \emph{each} rank.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Scattering data with \texttt{MPI\_Scatter}}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.6\linewidth]{figures/mpi_scatter.png}
+    \end{figure}
+    \blfootnote{Image source: https://www.wikiwand.com/de/Message\_Passing\_Interface}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Scattering data with \texttt{MPI\_Scatter}}
+
+    If we need to send a different amount of data to each rank, we can use \texttt{MPI\_Scatterv}.
+    \begin{code}
+int MPI_Scatterv(const void *sendbuf,
+                 const int *sendcounts,
+                 const int *displs,
+                 MPI_Datatype sendtype,
+                 void *recvbuf,
+                 int recvcount,
+                 MPI_Datatype recvtype,
+                 int root,
+                 MPI_Comm comm)
+    \end{code}
+    \conclude{Sends \texttt{sendcounts[r]} items to rank \texttt{r} starting with \texttt{sendbuf[displs[r]]}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Gathering data with \texttt{MPI\_Gather}}
+
+    The inverse operation to \texttt{MPI\_Scatter} is \texttt{MPI\_Gather}.
+    It collects data from all ranks on the root rank.
+    \begin{code}
+int MPI_Gather(const void *sendbuf,
+               int sendcount,
+               MPI_Datatype sendtype,
+               void *recvbuf,
+               int recvcount,
+               MPI_Datatype recvtype,
+               int root,
+               MPI_Comm comm)
+    \end{code}
+    \conclude{\texttt{MPI\_Gather} receives \texttt{recvcount} items from \emph{each} rank.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Gathering data with \texttt{MPI\_Gather}}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.6\linewidth]{figures/mpi_gather.png}
+    \end{figure}
+    \blfootnote{Image source: https://www.wikiwand.com/de/Message\_Passing\_Interface}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Gathering data with \texttt{MPI\_Gather}}
+
+    To collect a different amount of data from each rank, use \texttt{MPI\_Gatherv}.
+    \begin{code}
+int MPI_Gatherv(const void *sendbuf,
+                int sendcount,
+                MPI_Datatype sendtype,
+                void *recvbuf,
+                const int *recvcounts,
+                const int *displs,
+                MPI_Datatype recvtype,
+                int root,
+                MPI_Comm comm)
+    \end{code}
+    \conclude{The root rank receives \texttt{recvcounts[r]} from rank \texttt{r} and stores them at \texttt{sendbuf + displs[r]}.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Gathering data with \texttt{MPI\_Allgather}}
+
+    \texttt{MPI\_Allgather} works just like \texttt{MPI\_Gather}, but \emph{all} ranks gather all data.
+    \begin{code}
+int MPI_Allgather(const void *sendbuf,
+                  int sendcount,
+                  MPI_Datatype sendtype,
+                  void *recvbuf,
+                  int recvcount,
+                  MPI_Datatype recvtype,
+                  MPI_Comm comm)
+    \end{code}
+    \conclude{Again, there is a more general \texttt{MPI\_Allgatherv} function, too.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Gathering data with \texttt{MPI\_Allgather}}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.6\linewidth]{figures/mpi_allgather.png}
+    \end{figure}
+    \blfootnote{Image source: https://www.wikiwand.com/de/Message\_Passing\_Interface}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Redistributing data with \texttt{MPI\_Alltoall}}
+
+    \texttt{MPI\_Alltoall} resembles \texttt{MPI\_Allgather}, but each rank now gathers different data.
+    The action of \texttt{MPI\_Alltoall} is best explained in a picture (next slide).
+    \begin{code}
+int MPI_Alltoall(const void *sendbuf,
+                 int sendcount,
+                 MPI_Datatype sendtype,
+                 void *recvbuf,
+                 int recvcount,
+                 MPI_Datatype recvtype,
+                 MPI_Comm comm)
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Redistributing data with \texttt{MPI\_Alltoall}}
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.6\linewidth]{figures/mpi_alltoall.png}
+    \end{figure}
+    \blfootnote{Image source: https://www.wikiwand.com/de/Message\_Passing\_Interface}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Redistributing data with \texttt{MPI\_Alltoall}}
+
+    Again, there is a function \texttt{MPI\_Alltoallv} that can be used if each rank receives a different amounts of data.
+    \begin{code}
+int MPI_Alltoallv(const void *sendbuf,
+                  const int *sendcounts,
+                  const int *sdispls,
+                  MPI_Datatype sendtype,
+                  void *recvbuf,
+                  const int *recvcounts,
+                  const int *rdispls,
+                  MPI_Datatype recvtype,
+                  MPI_Comm comm)
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Reductions}
+
+    Some collective operations perform computations in addition to message passing.
+
+    \texttt{MPI\_Reduce} works much like \texttt{MPI\_Gather}, but the gathered data is combined using an operator.
+    \begin{code}
+int MPI_Reduce(const void *sendbuf,
+               void *recvbuf,
+               int count,
+               MPI_Datatype datatype,
+               MPI_Op op,
+               int root,
+               MPI_Comm comm)
+    \end{code}
+    \conclude{Compare this to OpenMP's \texttt{reduction} clause.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Reductions}
+
+    Possible operations include
+    \begin{code}
+typedef enum {
+  MPI_MAX,
+  MPI_MIN,
+  MPI_SUM,
+  MPI_PROD,
+  MPI_REPLACE,
+  // etc.
+} MPI_Op;
+    \end{code}
+    \conclude{Users can define their own operations, too.}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Reductions}
+
+    \texttt{MPI\_Allreduce} works like \texttt{MPI\_Reduce}, but now \emph{every} rank performs a reduction.
+    \begin{code}
+int MPI_Allreduce(const void *sendbuf,
+                  void *recvbuf,
+                  int count,
+                  MPI_Datatype datatype,
+                  MPI_Op op,
+                  MPI_Comm comm)
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Reductions}
+
+    \emph{Example:} Compute the Euclidean norm of a \emph{distributed} vector.
+    \begin{code}
+double norm2(const double *x, int n_local)
+{
+  double sum, sum_local = 0.0;
+
+  for (int i = 0; i < n_local; i++) {
+    sum_local += x[i]*x[i];
+  }
+  MPI_Allreduce(&sum_local, &sum, 1, MPI_DOUBLE,
+                MPI_SUM, MPI_COMM_WORLD);
+
+  return sqrt(sum);
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Collectives and deadlocks}
+
+    Collective operations \emph{must} be called by all ranks in the communicator.
+    Otherwise, the collective operation results in a deadlock!
+
+    This can be trickier than it seems:
+    \begin{code}
+compute_vector(x, n_local);
+
+if (rank == 0) {
+  // Deadlock!
+  printf("||x|| = %e\n", norm2(x, n_local));
+}
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Collectives and performance}
+
+    \emph{Question:} Is the code below a good implementation of \texttt{MPI\_Bcast}?
+    \begin{code}
+if (rank == root) {
+  for (int r = 0; r < size; r++) {
+    if (r == rank) continue;
+    MPI_Send(buffer, count, datatype,
+             r, 999, comm);
+  }
+}
+else {
+  MPI_Recv(buffer, count, datatype,
+           root, 999, comm, MPI_STATUS_IGNORE);
+}
+// ...
+    \end{code}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Collectives and performance}
+
+    \emph{Answer:} No! We can accelerate the broadcast using a tree structure.
+
+    \begin{figure}
+      \centering
+      \includegraphics[width=0.5\linewidth]{figures/mpi_bcast_tree.png}
+    \end{figure}
+
+    \blfootnote{Image source: https://mpitutorial.com/tutorials/mpi-broadcast-and-collective-communication/}
+  \end{frame}
+\end{document}
