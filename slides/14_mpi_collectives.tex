@@ -224,7 +224,7 @@ int MPI_Gatherv(const void *sendbuf,
                 int root,
                 MPI_Comm comm)
     \end{code}
-    \conclude{The root rank receives \texttt{recvcounts[r]} from rank \texttt{r} and stores them at \texttt{sendbuf + displs[r]}.}
+    \conclude{The root rank receives \texttt{recvcounts[r]} from rank \texttt{r} and stores them at \texttt{recvbuf + displs[r]}.}
   \end{frame}
 
   \begin{frame}[fragile]
